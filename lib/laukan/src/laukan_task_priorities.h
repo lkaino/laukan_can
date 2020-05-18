@@ -1,0 +1,6 @@
+#pragma once
+
+#define TASK_CORE_CAN 1
+#define TASK_PRIORITY_CAN_STATUS 7
+#define TASK_PRIORITY_CAN_RX 8
+#define TASK_PRIORITY_CAN_CONTROL 10

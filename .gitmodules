@@ -1,0 +1,3 @@
+[submodule "lib/obdii"]
+	path = lib/obdii
+	url = https://github.com/lkaino/obdii.git
