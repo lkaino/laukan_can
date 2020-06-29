@@ -34,14 +34,14 @@ typedef enum
     LAUKAN_CAN_STATE_STOPPED,
     LAUKAN_CAN_STATE_OPERATIONAL,
     LAUKAN_CAN_STATE_BUSOFF
-} laukan_CANState_e;
+} ln_CANState_e;
 
 typedef struct
 {
     uint32_t CANIDAcceptanceMask;
     uint32_t CANIDAcceptanceValue;
     QueueHandle_t RXQueue;
-} laukan_CANProtocol_t;
+} ln_CANProtocol_t;
 
 // ****************************************************************************
 // *                                GLOBALS                                   *
@@ -53,9 +53,9 @@ static const can_filter_config_t gCANFilterConfig = CAN_FILTER_CONFIG_ACCEPT_ALL
 static SemaphoreHandle_t gCANMutex;
 static EventGroupHandle_t gCANControlEvent;
 
-static laukan_CANState_e gCANState = LAUKAN_CAN_STATE_UNITIALIZED;
+static ln_CANState_e gCANState = LAUKAN_CAN_STATE_UNITIALIZED;
 
-static laukan_CANProtocol_t *gpProtocols;
+static ln_CANProtocol_t *gpProtocols;
 static uint32_t gMaxNumOfProcotols;
 static uint32_t gNumOfProtocols;
 
@@ -80,7 +80,7 @@ static void ReceiveTask(void *arg)
         {
             for (uint32_t i = 0; i < gNumOfProtocols; i++)
             {
-                laukan_CANProtocol_t *pProtocol = &gpProtocols[i];
+                ln_CANProtocol_t *pProtocol = &gpProtocols[i];
                 if ((message.identifier & pProtocol->CANIDAcceptanceMask) == pProtocol->CANIDAcceptanceValue)
                 {
                     if (xQueueSend(gpProtocols[i].RXQueue, &message, 0) == errQUEUE_FULL)
@@ -93,6 +93,7 @@ static void ReceiveTask(void *arg)
         else
         {
             Serial.printf("can_receive failed (%d).\n", err);
+            vTaskDelay(pdMS_TO_TICKS(100));
         }
     }
     vTaskDelete(NULL);
@@ -206,9 +207,9 @@ static void StatusTask(void *arg)
     }
 }
 
-laukan_CANRet_e laukan_canInit(uint32_t maxNumOfProtocols)
+ln_CANRet_e ln_canInit(uint32_t maxNumOfProtocols)
 {
-    laukan_CANRet_e ret = LAUKAN_CAN_RET_OK;
+    ln_CANRet_e ret = LAUKAN_CAN_RET_OK;
     if (gCANState != LAUKAN_CAN_STATE_UNITIALIZED)
     {
         ret = LAUKAN_CAN_RET_ALREADY_INITIALIZED;
@@ -217,7 +218,7 @@ laukan_CANRet_e laukan_canInit(uint32_t maxNumOfProtocols)
     if (ret == LAUKAN_CAN_RET_OK)
     {
         memset(&gpProtocols, 0, sizeof(gpProtocols));
-        gpProtocols = (laukan_CANProtocol_t *)malloc(maxNumOfProtocols * sizeof(laukan_CANProtocol_t));
+        gpProtocols = (ln_CANProtocol_t *)malloc(maxNumOfProtocols * sizeof(ln_CANProtocol_t));
         if (gpProtocols == NULL)
         {
             ret = LAUKAN_CAN_RET_NO_MEM;
@@ -252,9 +253,9 @@ laukan_CANRet_e laukan_canInit(uint32_t maxNumOfProtocols)
     return ret;
 }
 
-laukan_CANRet_e laukan_canStart(laukan_CANBaud_e baud, uint32_t wait_ms)
+ln_CANRet_e ln_canStart(ln_CANBaud_e baud, uint32_t wait_ms)
 {
-    laukan_CANRet_e ret = LAUKAN_CAN_RET_OK;
+    ln_CANRet_e ret = LAUKAN_CAN_RET_OK;
     if (gCANState != LAUKAN_CAN_STATE_UNITIALIZED)
     {
         //can_timing_config_t newConfig = CAN_TIMING_CONFIG_25KBITS();
@@ -311,9 +312,9 @@ laukan_CANRet_e laukan_canStart(laukan_CANBaud_e baud, uint32_t wait_ms)
     return ret;
 }
 
-laukan_CANRet_e laukan_canStop(uint32_t wait_ms)
+ln_CANRet_e ln_canStop(uint32_t wait_ms)
 {
-    laukan_CANRet_e ret = LAUKAN_CAN_RET_OK;
+    ln_CANRet_e ret = LAUKAN_CAN_RET_OK;
     if (gCANState == LAUKAN_CAN_STATE_UNITIALIZED)
     {
         ret = LAUKAN_CAN_RET_NOT_INITIALIZED;
@@ -335,12 +336,12 @@ laukan_CANRet_e laukan_canStop(uint32_t wait_ms)
     return ret;
 }
 
-laukan_CANRet_e laukan_canRegisterProtocol(laukan_canProtocolHandle *pHandle,
-                                           uint32_t numOfMessagesToBuffer,
-                                           uint32_t CANIDAcceptanceMask,
-                                           uint32_t CANIDAcceptanceValue)
+ln_CANRet_e ln_canRegisterProtocol(ln_canProtocolHandle *pHandle,
+                                   uint32_t numOfMessagesToBuffer,
+                                   uint32_t CANIDAcceptanceMask,
+                                   uint32_t CANIDAcceptanceValue)
 {
-    laukan_CANRet_e ret = LAUKAN_CAN_RET_OK;
+    ln_CANRet_e ret = LAUKAN_CAN_RET_OK;
 
     if ((pHandle == NULL) || (numOfMessagesToBuffer == 0))
     {
@@ -370,6 +371,8 @@ laukan_CANRet_e laukan_canRegisterProtocol(laukan_canProtocolHandle *pHandle,
             {
                 *pHandle = gNumOfProtocols;
                 gpProtocols[gNumOfProtocols].RXQueue = queueHandle;
+                gpProtocols[gNumOfProtocols].CANIDAcceptanceMask = CANIDAcceptanceMask;
+                gpProtocols[gNumOfProtocols].CANIDAcceptanceValue = CANIDAcceptanceValue;
                 gNumOfProtocols++;
             }
         }
@@ -379,11 +382,11 @@ laukan_CANRet_e laukan_canRegisterProtocol(laukan_canProtocolHandle *pHandle,
     return ret;
 }
 
-laukan_CANRet_e laukan_canReceive(laukan_canProtocolHandle handle,
-                                  can_message_t *pMessage,
-                                  uint32_t timeout_ms)
+ln_CANRet_e ln_canReceive(ln_canProtocolHandle handle,
+                          can_message_t *pMessage,
+                          uint32_t timeout_ms)
 {
-    laukan_CANRet_e ret = LAUKAN_CAN_RET_OK;
+    ln_CANRet_e ret = LAUKAN_CAN_RET_OK;
 
     if ((pMessage == NULL) ||
         (handle >= gNumOfProtocols))
@@ -407,10 +410,10 @@ laukan_CANRet_e laukan_canReceive(laukan_canProtocolHandle handle,
     return ret;
 }
 
-laukan_CANRet_e laukan_canSend(const can_message_t *pMessage,
-                               uint32_t timeout_ms)
+ln_CANRet_e ln_canSend(const can_message_t *pMessage,
+                       uint32_t timeout_ms)
 {
-    laukan_CANRet_e ret = LAUKAN_CAN_RET_OK;
+    ln_CANRet_e ret = LAUKAN_CAN_RET_OK;
 
     if (pMessage == NULL)
     {
