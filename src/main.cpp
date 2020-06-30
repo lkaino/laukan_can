@@ -16,21 +16,26 @@
 #include "laukan_debug_print.h"
 #include "OBDIICommunication.h"
 
+#include "leaf_can.h"
+
 void setup()
 {
   ln_Dbg_init();
-  sd_init();
-  //ln_canInit(3);
+  //sd_init();
+  ln_canInit(3);
+
+  Serial.printf("after caninit\n");
+  leafCANInit();
   //OBDIIInit();
   //ln_MPUInit();
   //ln_MPUInit();
-  ln_klInit();
+  //ln_klInit();
 
   // put your setup code here, to run once:
 }
 
 void loop()
-{
+{ /*
   ln_klSetPinState(0, 200);
   ln_klSetPinState(1, 400);
   ln_klSetPinState(0, 400);
@@ -48,7 +53,7 @@ void loop()
   ln_klSend(data, sizeof(data), 10400, 5);
   ln_klSend(data, sizeof(data), 9600, 5);
 
-  ln_printf(NULL, LN_DBG_INFO, "portTICK_RATE_MS %d\n", portTICK_RATE_MS);
+  ln_printf(NULL, LN_DBG_INFO, "portTICK_RATE_MS %d\n", portTICK_RATE_MS);*/
   //ln_canStart(LAUKAN_CAN_BAUD_500K, 1000);
   //vTaskDelay(pdMS_TO_TICKS(10000));
   //ln_canStop(1000);
